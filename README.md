@@ -1,6 +1,10 @@
 # Character Fidelity Lab
 
-I built this for my application to Wizards of the Coast's Applied AI Engineer role. It uses Harrowmere, the world from a 3D isometric tactical RPG I'm developing in Godot, and Maelor, a stand-in character from that world. It tests a character-fidelity pipeline against Google Gemini.
+**A retrieval-grounded character pipeline with versioned instructions, source citations, and a repeatable evaluation harness.**
+
+I built this to test how changes to a character's rulebook affect factual recall, citation use, resistance to manipulation, and character voice. The setting is Harrowmere, the world of my Godot tactical RPG; Maelor provides a concrete character and lore set for testing the pipeline against Google Gemini.
+
+The project connects semantic retrieval, provider integration, deterministic input/output checks, and comparative evaluation. Published prompts, test cases, answer logs, and scores make the development decisions inspectable.
 
 ## Results: two versions of the character, tested head to head
 
@@ -15,7 +19,9 @@ I wrote two versions of Maelor's rulebook: instructions defining his voice, what
 | Didn't leak internal instructions | 100.0% | 100.0% | no change |
 | **Overall** | **85.7%** | **87.6%** | **+1.9 points** |
 
-Version 2 scored lower on fact recall and higher on refusing manipulation attempts and citing sources. The test set has 21 questions per run; one flipped answer changes any row by about 5 points. Both runs above used Gemini for every question.
+The comparison exposed a useful design tradeoff: stricter source and refusal instructions improved citation and attack-response scores while reducing fact recall. That gives the next prompt iteration a specific target, visible in the saved answers.
+
+These are deterministic rubric scores on the same 21-question sample drawn from the 59-case suite, with Gemini used for every answer; they describe this comparison rather than a general model benchmark. One changed answer moves a per-metric score by about 4.8 percentage points.
 
 Full data: [`reports/v1_gemini.jsonl`](reports/v1_gemini.jsonl), [`reports/v2_gemini.jsonl`](reports/v2_gemini.jsonl), [`reports/v1_vs_v2_gemini.md`](reports/v1_vs_v2_gemini.md).
 
@@ -37,29 +43,17 @@ lore library -> search for relevant passages -> build instructions -> AI model w
 | Talking to the AI model | Sends the request to Gemini, OpenAI, or Anthropic | `providers/` |
 | Grading | Scores every test answer and compares versions | `scorer.py`, `run_eval.py`, `compare_runs.py` |
 
-### The manipulation filter uses phrase matching
+### Inspectable input and output checks
 
-The filter that blocks manipulation attempts matches against a list of phrases, the same method a spam filter uses to block emails containing an exact phrase. A reworded attempt is not caught by this method. A production system would use:
-
-- Comparing questions to known attack examples by meaning, using the same method used for lore search.
-- A separate model trained to detect manipulation attempts, such as Meta's Llama Guard or OpenAI's moderation system.
-- A hidden marker placed in the character's instructions, with each answer scanned for that marker to detect leaks.
-- Existing frameworks such as NVIDIA's NeMo Guardrails or Guardrails AI.
-
-Production systems typically combine multiple of these methods.
+The input filter uses deterministic phrase matching for known manipulation patterns; output checks flag leaked instructions and missing source citations. These lightweight controls are easy to inspect and test offline. Phrase matching covers the listed patterns, so paraphrased attacks require additional detection methods; the published attack score measures the included test cases.
 
 ### Scoring method
 
-Scoring checks each answer for specific words and required citations. This method is fast and reproducible. An answer phrased differently than expected can score as incorrect even when its content is correct. 59 test questions across 7 categories are in `data/evals/eval_cases.jsonl`.
+The suite contains 59 hand-written questions across 7 categories in `data/evals/eval_cases.jsonl`. Scoring checks expected terms, citations, and rule compliance, making version comparisons fast and reproducible. The answer logs support qualitative review where paraphrases or character voice call for judgment beyond the deterministic rubric.
 
-## How I'd scale this up
+## Extending the experiment
 
-- **More source material**: the search method works at any size; past a few thousand passages, it would move to a dedicated search index built for that scale.
-- **More test questions**: 59 hand-written questions cover this test. A full cast of characters needs a larger, per-character test set, drafted with AI assistance and checked by a person.
-- **Better grading**: keep word-matching for what should be exact (citations, refusals), and add a second AI model as a judge for fuzzier questions (character voice, paraphrased facts).
-- **Automatic re-testing**: run the test suite on every change to a character's rulebook, and on every AI model update, to catch changes that alter character behavior.
-- **More characters**: the same pipeline runs per character, each with its own source material, rulebook, and test questions, sharing one set of filters and one grading system.
-- **Running live**: wrap this in a web service, and keep a permanent, searchable record of every question, answer, and test run.
+Character rulebooks, lore, test cases, and provider adapters are separate inputs to the same pipeline. The next evaluation step is a full-suite comparison with paraphrase-aware review, followed by additional characters and regression runs when prompts or provider models change.
 
 ## Running it
 
@@ -83,4 +77,4 @@ make compare  # run v1 vs v2 tests, write the comparison report
 - `data/evals/` — the test questions.
 - `data/index/` — the built search index.
 - `reports/` — test results.
-- `tests/` — offline plumbing tests.
+- `tests/` — offline tests for chunking, retrieval, guardrails, and scoring.
