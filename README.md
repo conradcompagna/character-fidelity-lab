@@ -2,7 +2,7 @@
 
 **A retrieval-grounded character pipeline with versioned instructions, source citations, and a repeatable evaluation harness.**
 
-I built this to test how changes to a character's rulebook affect factual recall, citation use, resistance to manipulation, and character voice. The setting is Harrowmere, the world of my Godot tactical RPG; Maelor provides a concrete character and lore set for testing the pipeline against Google Gemini.
+I built this to test how changes to a character's rulebook affect factual recall, citation use, resistance to manipulation, and character voice. The sample uses Maelor, a fictional character, and a supporting lore set to evaluate the pipeline against Google Gemini.
 
 The project connects semantic retrieval, provider integration, deterministic input/output checks, and comparative evaluation. Published prompts, test cases, answer logs, and scores make the development decisions inspectable.
 
